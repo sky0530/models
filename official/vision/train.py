@@ -19,6 +19,8 @@ from absl import flags
 from absl import logging
 import gin
 import tensorflow as tf, tf_keras
+import random
+import numpy as np
 
 from official.common import distribute_utils
 from official.common import flags as tfm_flags
@@ -28,7 +30,7 @@ from official.core import train_utils
 from official.modeling import performance
 from official.vision import registry_imports  # pylint: disable=unused-import
 from official.vision.utils import summary_manager
-
+from official.utils.flags import core as flags_core
 
 FLAGS = flags.FLAGS
 
@@ -36,6 +38,16 @@ flags.DEFINE_bool(
     'enable_async_checkpointing',
     default=True,
     help='A boolean indicating whether to enable async checkpoint saving')
+
+flags.DEFINE_integer(
+    'seed',
+    default=42,
+    help='Random seed for reproducibility')
+
+def set_random_seeds(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
 
 
 def _run_experiment_with_preemption_recovery(params, model_dir):
@@ -89,7 +101,13 @@ def main(_):
     # Pure eval modes do not output yaml files. Otherwise continuous eval job
     # may race against the train job for writing the same file.
     train_utils.serialize_config(params, model_dir)
-
+   # Set the random seed for reproducibility
+  set_random_seeds(FLAGS.seed)
+  print(f"Set random seed: {FLAGS.seed}")
+ 
+  if FLAGS.data_format == "channels_last":
+     tf.keras.backend.set_image_data_format(FLAGS.data_format)
+     print(f"Set data format: {FLAGS.data_format}")
   # Sets mixed_precision policy. Using 'mixed_float16' or 'mixed_bfloat16'
   # can have significant impact on model speeds by utilizing float16 in case of
   # GPUs, and bfloat16 in the case of TPUs. loss_scale takes effect only when
@@ -102,5 +120,6 @@ def main(_):
 
 if __name__ == '__main__':
   tfm_flags.define_flags()
+  flags_core.define_image()
   flags.mark_flags_as_required(['experiment', 'mode', 'model_dir'])
   app.run(main)

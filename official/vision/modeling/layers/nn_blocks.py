@@ -386,7 +386,7 @@ class BottleneckBlock(tf_keras.layers.Layer):
     self._conv2 = tf_keras.layers.Conv2D(
         filters=self._filters,
         kernel_size=3,
-        strides=self._strides,
+        strides=self._strides if self._use_projection else 1,
         dilation_rate=self._dilation_rate,
         padding='same',
         use_bias=False,

@@ -220,6 +220,12 @@ class ResNet(tf_keras.Model):
   def _stem(self, inputs):
     stem_depth_multiplier = self._depth_multiplier if self._scale_stem else 1.0
     if self._stem_type == 'v0':
+      if tf.keras.backend.image_data_format() == 'channels_first':
+        x = layers.Lambda(
+            lambda x: tf.keras.backend.permute_dimensions(x, (0, 3, 1, 2)),
+            name='transpose')(x)
+
+      x = layers.ZeroPadding2D(padding=(3, 3), name='conv1_pad')(inputs)
       x = layers.Conv2D(
           filters=int(64 * stem_depth_multiplier),
           kernel_size=7,

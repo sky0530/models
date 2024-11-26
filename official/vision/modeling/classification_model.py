@@ -80,19 +80,33 @@ class ClassificationModel(tf_keras.Model):
     # Depending on the backbone type, backbone's output can be
     # [batch_size, height, weight, channel_size] or
     # [batch_size, token_size, hidden_size].
-    if len(x.shape) == 4:
-      x = tf_keras.layers.GlobalAveragePooling2D()(x)
-    elif len(x.shape) == 3:
-      x = tf_keras.layers.GlobalAveragePooling1D()(x)
+#    if len(x.shape) == 4:
+#      x = tf_keras.layers.GlobalAveragePooling2D()(x)
+#    elif len(x.shape) == 3:
+#      x = tf_keras.layers.GlobalAveragePooling1D()(x)
+#
+#    if not skip_logits_layer:
+#      x = tf_keras.layers.Dropout(dropout_rate)(x)
+#      x = tf_keras.layers.Dense(
+#          num_classes,
+#          kernel_initializer=kernel_initializer,
+#          kernel_regularizer=kernel_regularizer,
+#          bias_regularizer=bias_regularizer)(
+#              x)
 
-    if not skip_logits_layer:
-      x = tf_keras.layers.Dropout(dropout_rate)(x)
-      x = tf_keras.layers.Dense(
-          num_classes,
-          kernel_initializer=kernel_initializer,
-          kernel_regularizer=kernel_regularizer,
-          bias_regularizer=bias_regularizer)(
-              x)
+    rm_axes = [1, 2] if tf.keras.backend.image_data_format() == 'channels_last' else [2, 3]
+    x = layers.Lambda(lambda x: tf.keras.backend.mean(x, rm_axes), name='reduce_mean')(x)
+    x = layers.Dense(
+        num_classes,
+        kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.01),
+        kernel_regularizer=None,
+        bias_regularizer=None,
+        name='fc1000')(
+            x)
+
+    # A softmax that is followed by the model loss must be done cannot be done
+    # in float16 due to numeric issues. So we pass dtype=float32.
+    x = layers.Activation('softmax', dtype='float32')(x)
 
     super(ClassificationModel, self).__init__(
         inputs=inputs, outputs=x, **kwargs)
